@@ -343,8 +343,9 @@ class RCTGAN:
                 
     def generate_letter_id(self, size):
         liste = []
+        # removed n as nan ids were being generated
         letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 
-                   'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+                   'j', 'k', 'l', 'm', 'o', 'p', 'q', 'r',
                    's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
         is_first = True
         boolean =True
