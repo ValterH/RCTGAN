@@ -9,6 +9,7 @@ from rctgan.errors import NotFittedError
 from rctgan.relational.rctgan import RCTGAN
 from rctgan.tabular.ctganpc import CTGAN, PC_CTGAN
 
+
 class RCTGAN:
     """Automated generative modeling and sampling tool.
 
@@ -20,16 +21,12 @@ class RCTGAN:
         model_kwargs (dict):
             Keyword arguments to pass to the model. If no ``model`` is given,
             this defaults to using a ``RCTGAN`` with ``gaussian`` distribution
-            and ``categorical_fuzzy`` categorical transformer.
+            and ``categorical`` categorical transformer.
     """
 
     _model_instance = None
     DEFAULT_MODEL = RCTGAN
-    DEFAULT_MODEL_KWARGS = {
-        'hyperparam': None,
-        'metadata': None,
-        'current_table': None
-    }
+    DEFAULT_MODEL_KWARGS = {"hyperparam": None, "metadata": None, "current_table": None}
 
     def __init__(self, model=None, model_kwargs=None):
         if model is None:
@@ -58,8 +55,13 @@ class RCTGAN:
         self._model_instance = self._model(metadata, root_path, **self._model_kwargs)
         self._model_instance.fit(tables)
 
-    def sample(self, table_name=None, num_rows=None,
-               sample_children=True, reset_primary_keys=False):
+    def sample(
+        self,
+        table_name=None,
+        num_rows=None,
+        sample_children=True,
+        reset_primary_keys=False,
+    ):
         """Generate synthetic data for one table or the entire dataset.
 
         If a ``table_name`` is given and ``sample_children`` is ``False``, a
@@ -103,13 +105,13 @@ class RCTGAN:
                 A ``NotFittedError`` is raised when the ``sdvrctgan`` instance has not been fitted yet.
         """
         if self._model_instance is None:
-            raise NotFittedError('sdvrctgan instance has not been fitted')
+            raise NotFittedError("sdvrctgan instance has not been fitted")
 
         return self._model_instance.sample(
             table_name,
             num_rows,
             sample_children=sample_children,
-            reset_primary_keys=reset_primary_keys
+            reset_primary_keys=reset_primary_keys,
         )
 
     def sample_all(self, num_rows=None, reset_primary_keys=False):
@@ -133,8 +135,10 @@ class RCTGAN:
             NotFittedError:
                 A ``NotFittedError`` is raised when the ``sdvrctgan`` instance has not been fitted yet.
         """
-        warnings.warn('`sample_all` is deprecated and will be removed soon. Please use `sample`',
-                      DeprecationWarning)
+        warnings.warn(
+            "`sample_all` is deprecated and will be removed soon. Please use `sample`",
+            DeprecationWarning,
+        )
         return self.sample(num_rows=num_rows, reset_primary_keys=reset_primary_keys)
 
     def save(self, path):
@@ -144,7 +148,7 @@ class RCTGAN:
             path (str):
                 Path where the sdvrctgan instance will be serialized.
         """
-        with open(path, 'wb') as output:
+        with open(path, "wb") as output:
             pickle.dump(self, output)
 
     @classmethod
@@ -155,5 +159,5 @@ class RCTGAN:
             path (str):
                 Path from which to load the sdvrctgan instance.
         """
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             return pickle.load(f)

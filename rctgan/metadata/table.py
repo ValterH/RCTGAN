@@ -46,7 +46,6 @@ class Table:
                 * ``integer``: Uses a ``NumericalTransformer`` of dtype ``int``.
                 * ``float``: Uses a ``NumericalTransformer`` of dtype ``float``.
                 * ``categorical``: Uses a ``CategoricalTransformer`` without gaussian noise.
-                * ``categorical_fuzzy``: Uses a ``CategoricalTransformer`` adding gaussian noise.
                 * ``one_hot_encoding``: Uses a ``OneHotEncodingTransformer``.
                 * ``label_encoding``: Uses a ``LabelEncodingTransformer``.
                 * ``boolean``: Uses a ``BooleanTransformer``.
@@ -110,51 +109,52 @@ class Table:
 
     _ANONYMIZATION_MAPPINGS = dict()
     _TRANSFORMER_TEMPLATES = {
-        'integer': rdt.transformers.NumericalTransformer(dtype=int),
-        'float': rdt.transformers.NumericalTransformer(dtype=float),
-        'categorical': rdt.transformers.CategoricalTransformer,
-        'categorical_fuzzy': rdt.transformers.CategoricalTransformer(fuzzy=True),
-        'one_hot_encoding': rdt.transformers.OneHotEncodingTransformer,
-        'label_encoding': rdt.transformers.LabelEncodingTransformer,
-        'boolean': rdt.transformers.BooleanTransformer,
-        'datetime': rdt.transformers.DatetimeTransformer(strip_constant=True),
+        "integer": rdt.transformers.FloatFormatter(computer_representation="Int64"),
+        "float": rdt.transformers.FloatFormatter(),
+        "categorical": rdt.transformers.UniformEncoder,
+        "one_hot_encoding": rdt.transformers.OneHotEncoder,
+        "label_encoding": rdt.transformers.LabelEncoder,
+        "boolean": rdt.transformers.BinaryEncoder,
+        "datetime": rdt.transformers.OptimizedTimestampEncoder(
+            missing_value_replacement="mean"
+        ),
     }
     _DTYPE_TRANSFORMERS = {
-        'i': 'integer',
-        'f': 'float',
-        'O': 'one_hot_encoding',
-        'b': 'boolean',
-        'M': 'datetime',
+        "i": "integer",
+        "f": "float",
+        "O": "one_hot_encoding",
+        "b": "boolean",
+        "M": "datetime",
     }
     _DTYPES_TO_TYPES = {
-        'i': {
-            'type': 'numerical',
-            'subtype': 'integer',
+        "i": {
+            "type": "numerical",
+            "subtype": "integer",
         },
-        'f': {
-            'type': 'numerical',
-            'subtype': 'float',
+        "f": {
+            "type": "numerical",
+            "subtype": "float",
         },
-        'O': {
-            'type': 'categorical',
+        "O": {
+            "type": "categorical",
         },
-        'b': {
-            'type': 'boolean',
+        "b": {
+            "type": "boolean",
         },
-        'M': {
-            'type': 'datetime',
-        }
+        "M": {
+            "type": "datetime",
+        },
     }
     _TYPES_TO_DTYPES = {
-        ('categorical', None): 'object',
-        ('boolean', None): 'bool',
-        ('numerical', None): 'float',
-        ('numerical', 'float'): 'float',
-        ('numerical', 'integer'): 'int',
-        ('datetime', None): 'datetime64',
-        ('id', None): 'int',
-        ('id', 'integer'): 'int',
-        ('id', 'string'): 'str'
+        ("categorical", None): "object",
+        ("boolean", None): "bool",
+        ("numerical", None): "float",
+        ("numerical", "float"): "float",
+        ("numerical", "integer"): "int",
+        ("datetime", None): "datetime64",
+        ("id", None): "int",
+        ("id", "integer"): "int",
+        ("id", "string"): "str",
     }
 
     @staticmethod
@@ -169,7 +169,7 @@ class Table:
             Faker object:
                 The Faker object to anonymize the data in the field using its functions.
         """
-        pii_locales = field_metadata.get('pii_locales', None)
+        pii_locales = field_metadata.get("pii_locales", None)
         return Faker(locale=pii_locales)
 
     @staticmethod
@@ -198,16 +198,20 @@ class Table:
 
         try:
             if args:
+
                 def _faker():
                     return getattr(faker, category)(*args)
 
             else:
+
                 def _faker():
                     return getattr(faker, category)()
 
             return _faker
         except AttributeError:
-            raise ValueError('Category "{}" couldn\'t be found on faker'.format(category))
+            raise ValueError(
+                'Category "{}" couldn\'t be found on faker'.format(category)
+            )
 
     @staticmethod
     def _get_fake_values(field_metadata, num_values):
@@ -225,25 +229,29 @@ class Table:
                 Generator containing the anonymized values.
         """
         faker = Table._get_faker(field_metadata)
-        faker_method = Table._get_faker_method(faker, field_metadata['pii_category'])
-        return (
-            faker_method()
-            for _ in range(num_values)
-        )
+        faker_method = Table._get_faker_method(faker, field_metadata["pii_category"])
+        return (faker_method() for _ in range(num_values))
 
     def _update_transformer_templates(self, rounding, min_value, max_value):
-        default_numerical_transformer = self._TRANSFORMER_TEMPLATES['integer']
-        if (rounding != default_numerical_transformer.rounding
-                or min_value != default_numerical_transformer.min_value
-                or max_value != default_numerical_transformer.max_value):
-            custom_int = rdt.transformers.NumericalTransformer(
-                dtype=int, rounding=rounding, min_value=min_value, max_value=max_value)
-            custom_float = rdt.transformers.NumericalTransformer(
-                dtype=float, rounding=rounding, min_value=min_value, max_value=max_value)
-            self._transformer_templates.update({
-                'integer': custom_int,
-                'float': custom_float
-            })
+        default_numerical_transformer = self._TRANSFORMER_TEMPLATES["integer"]
+        if (
+            rounding != default_numerical_transformer.learn_rounding_scheme
+            or min_value != default_numerical_transformer.enforce_min_max_values
+            or max_value != default_numerical_transformer.enforce_min_max_values
+        ):
+            custom_int = rdt.transformers.FloatFormatter(
+                learn_rounding_scheme=rounding,
+                computer_representation="Int64",
+                enforce_min_max_values=True,
+            )
+            custom_float = rdt.transformers.FloatFormatter(
+                learn_rounding_scheme=rounding,
+                computer_representation="Float",
+                enforce_min_max_values=True,
+            )
+            self._transformer_templates.update(
+                {"integer": custom_int, "float": custom_float}
+            )
 
     @staticmethod
     def _prepare_constraints(constraints):
@@ -262,22 +270,39 @@ class Table:
             if not constraint.rebuild_columns:
                 reject_sampling_constraints.append(constraint)
             elif rebuild_columns & set(constraint.constraint_columns):
-                intersecting_columns = rebuild_columns & set(constraint.constraint_columns)
-                raise Exception('Multiple constraints will modify the same column(s): '
-                                f'"{intersecting_columns}", which may lead to the constraint '
-                                'being unenforceable. Please use "reject_sampling" as the '
-                                '"handling_strategy" instead.')
+                intersecting_columns = rebuild_columns & set(
+                    constraint.constraint_columns
+                )
+                raise Exception(
+                    "Multiple constraints will modify the same column(s): "
+                    f'"{intersecting_columns}", which may lead to the constraint '
+                    'being unenforceable. Please use "reject_sampling" as the '
+                    '"handling_strategy" instead.'
+                )
             else:
                 transform_constraints.append(constraint)
                 rebuild_columns.update(constraint.rebuild_columns)
 
         return reject_sampling_constraints + transform_constraints
 
-    def __init__(self, name=None, field_names=None, field_types=None, field_transformers=None,
-                 anonymize_fields=None, primary_key=None, constraints=None,
-                 dtype_transformers=None, model_kwargs=None, sequence_index=None,
-                 entity_columns=None, context_columns=None, rounding=None, min_value=None,
-                 max_value=None):
+    def __init__(
+        self,
+        name=None,
+        field_names=None,
+        field_types=None,
+        field_transformers=None,
+        anonymize_fields=None,
+        primary_key=None,
+        constraints=None,
+        dtype_transformers=None,
+        model_kwargs=None,
+        sequence_index=None,
+        entity_columns=None,
+        context_columns=None,
+        rounding=None,
+        min_value=None,
+        max_value=None,
+    ):
         self.name = name
         self._field_names = field_names
         self._field_types = field_types or {}
@@ -297,7 +322,7 @@ class Table:
             self._dtype_transformers.update(dtype_transformers)
 
     def __repr__(self):
-        return 'Table(name={}, field_names={})'.format(self.name, self._field_names)
+        return "Table(name={}, field_names={})".format(self.name, self._field_names)
 
     def get_model_kwargs(self, model_name):
         """Return the required model kwargs for the indicated model.
@@ -318,13 +343,14 @@ class Table:
         self._model_kwargs[model_name] = model_kwargs
 
     def _get_field_dtype(self, field_name, field_metadata):
-        field_type = field_metadata['type']
-        field_subtype = field_metadata.get('subtype')
+        field_type = field_metadata["type"]
+        field_subtype = field_metadata.get("subtype")
         dtype = self._TYPES_TO_DTYPES.get((field_type, field_subtype))
         if not dtype:
             raise MetadataError(
-                'Invalid type and subtype combination for field {}: ({}, {})'.format(
-                    field_name, field_type, field_subtype)
+                "Invalid type and subtype combination for field {}: ({}, {})".format(
+                    field_name, field_type, field_subtype
+                )
             )
 
         return dtype
@@ -351,9 +377,9 @@ class Table:
         """
         dtypes = dict()
         for name, field_meta in self._fields_metadata.items():
-            field_type = field_meta['type']
+            field_type = field_meta["type"]
 
-            if ids or (field_type != 'id'):
+            if ids or (field_type != "id"):
                 dtypes[name] = self._get_field_dtype(name, field_meta)
 
         return dtypes
@@ -376,7 +402,7 @@ class Table:
         fields_metadata = dict()
         for field_name in self._field_names:
             if field_name not in data:
-                raise ValueError('Field {} not found in given data'.format(field_name))
+                raise ValueError("Field {} not found in given data".format(field_name))
 
             field_meta = self._field_types.get(field_name)
             if field_meta:
@@ -385,21 +411,23 @@ class Table:
                 dtype = data[field_name].dtype
                 field_template = self._DTYPES_TO_TYPES.get(dtype.kind)
                 if field_template is None:
-                    msg = 'Unsupported dtype {} in column {}'.format(dtype, field_name)
+                    msg = "Unsupported dtype {} in column {}".format(dtype, field_name)
                     raise ValueError(msg)
 
                 field_meta = copy.deepcopy(field_template)
 
             field_transformer = self._field_transformers.get(field_name)
             if field_transformer:
-                field_meta['transformer'] = field_transformer
+                field_meta["transformer"] = field_transformer
             else:
-                field_meta['transformer'] = self._dtype_transformers.get(np.dtype(dtype).kind)
+                field_meta["transformer"] = self._dtype_transformers.get(
+                    np.dtype(dtype).kind
+                )
 
             anonymize_category = self._anonymize_fields.get(field_name)
             if anonymize_category:
-                field_meta['pii'] = True
-                field_meta['pii_category'] = anonymize_category
+                field_meta["pii"] = True
+                field_meta["pii_category"] = anonymize_category
 
             fields_metadata[field_name] = field_meta
 
@@ -419,14 +447,14 @@ class Table:
         transformers = dict()
         for name, dtype in dtypes.items():
             field_metadata = self._fields_metadata.get(name, {})
-            transformer_template = field_metadata.get('transformer')
+            transformer_template = field_metadata.get("transformer")
             if transformer_template is None:
-                transformer_template = self._dtype_transformers[np.dtype(dtype).kind]
+                transformer_template = self._DTYPE_TRANSFORMERS[np.dtype(dtype).kind]
                 if transformer_template is None:
                     # Skip this dtype
                     continue
 
-                field_metadata['transformer'] = transformer_template
+                field_metadata["transformer"] = transformer_template
 
             if isinstance(transformer_template, str):
                 transformer_template = self._transformer_templates[transformer_template]
@@ -436,8 +464,11 @@ class Table:
             else:
                 transformer = copy.deepcopy(transformer_template)
 
-            LOGGER.debug('Loading transformer %s for field %s',
-                         transformer.__class__.__name__, name)
+            LOGGER.debug(
+                "Loading transformer %s for field %s",
+                transformer.__class__.__name__,
+                name,
+            )
             transformers[name] = transformer
 
         return transformers
@@ -473,7 +504,7 @@ class Table:
                 dtypes[column] = meta_dtypes[column]
             elif column in extra_columns:
                 dtype_kind = data[column].dtype.kind
-                if dtype_kind in ('i', 'f'):
+                if dtype_kind in ("i", "f"):
                     numerical_extras.append(column)
                 else:
                     dtypes[column] = dtype_kind
@@ -482,20 +513,26 @@ class Table:
         for column in numerical_extras:
             transformers_dict[column] = rdt.transformers.NumericalTransformer()
 
-        self._hyper_transformer = rdt.HyperTransformer(field_transformers=transformers_dict)
+        self._hyper_transformer = rdt.HyperTransformer()
+        sdtypes = {
+            column: self._fields_metadata[column]["type"]
+            for column in transformers_dict.keys()
+        }
+        config = dict(transformers=transformers_dict, sdtypes=sdtypes)
+        self._hyper_transformer.set_config(config)
         self._hyper_transformer.fit(data[list(transformers_dict.keys())])
 
     @staticmethod
     def _get_key_subtype(field_meta):
         """Get the appropriate key subtype."""
-        field_type = field_meta['type']
+        field_type = field_meta["type"]
 
-        if field_type == 'categorical':
-            field_subtype = 'string'
+        if field_type == "categorical":
+            field_subtype = "string"
 
-        elif field_type in ('numerical', 'id'):
-            field_subtype = field_meta['subtype']
-            if field_subtype not in ('integer', 'string'):
+        elif field_type in ("numerical", "id"):
+            field_subtype = field_meta["subtype"]
+            if field_subtype not in ("integer", "string"):
                 raise ValueError(
                     'Invalid field "subtype" for key field: "{}"'.format(field_subtype)
                 )
@@ -525,23 +562,22 @@ class Table:
             fields = primary_key if isinstance(primary_key, list) else [primary_key]
             for field_name in fields:
                 if field_name not in self._fields_metadata:
-                    raise ValueError('Field "{}" does not exist in this table'.format(field_name))
+                    raise ValueError(
+                        'Field "{}" does not exist in this table'.format(field_name)
+                    )
 
                 field_metadata = self._fields_metadata[field_name]
-                if field_metadata['type'] != 'id':
+                if field_metadata["type"] != "id":
                     field_subtype = self._get_key_subtype(field_metadata)
 
-                    field_metadata.update({
-                        'type': 'id',
-                        'subtype': field_subtype
-                    })
+                    field_metadata.update({"type": "id", "subtype": field_subtype})
 
         self._primary_key = primary_key
 
     def _make_anonymization_mappings(self, data):
         mappings = {}
         for name, field_metadata in self._fields_metadata.items():
-            if field_metadata['type'] != 'id' and field_metadata.get('pii'):
+            if field_metadata["type"] != "id" and field_metadata.get("pii"):
                 uniques = data[name].unique()
                 mappings[name] = dict(
                     zip(uniques, Table._get_fake_values(field_metadata, len(uniques)))
@@ -566,11 +602,13 @@ class Table:
             data (pandas.DataFrame):
                 Table to be analyzed.
         """
-        LOGGER.info('Fitting table %s metadata', self.name)
+        LOGGER.info("Fitting table %s metadata", self.name)
         if not self._field_names:
             self._field_names = list(data.columns)
         elif isinstance(self._field_names, set):
-            self._field_names = [field for field in data.columns if field in self._field_names]
+            self._field_names = [
+                field for field in data.columns if field in self._field_names
+            ]
 
         self._dtypes = data[self._field_names].dtypes
 
@@ -581,32 +619,32 @@ class Table:
         self.set_primary_key(self._primary_key)
 
         self._make_anonymization_mappings(data)
-        LOGGER.info('Anonymizing table %s', self.name)
+        LOGGER.info("Anonymizing table %s", self.name)
         data = self._anonymize(data)
 
-        LOGGER.info('Fitting constraints for table %s', self.name)
+        LOGGER.info("Fitting constraints for table %s", self.name)
         constrained = self._fit_transform_constraints(data)
         extra_columns = set(constrained.columns) - set(data.columns)
 
-        LOGGER.info('Fitting HyperTransformer for table %s', self.name)
+        LOGGER.info("Fitting HyperTransformer for table %s", self.name)
         self._fit_hyper_transformer(constrained, extra_columns)
         self.fitted = True
 
-    def _transform_constraints(self, data, on_missing_column='error'):
+    def _transform_constraints(self, data, on_missing_column="error"):
         for constraint in self._constraints:
             try:
                 data = constraint.transform(data)
             except MissingConstraintColumnError:
-                if on_missing_column == 'error':
+                if on_missing_column == "error":
                     raise MissingConstraintColumnError()
 
-                elif on_missing_column == 'drop':
+                elif on_missing_column == "drop":
                     indices_to_drop = data.columns.isin(constraint.constraint_columns)
                     columns_to_drop = data.columns.where(indices_to_drop).dropna()
                     data = data.drop(columns_to_drop, axis=1)
 
                 else:
-                    raise ValueError('on_missing_column must be \'drop\' or \'error\'')
+                    raise ValueError("on_missing_column must be 'drop' or 'error'")
 
         return data
 
@@ -627,9 +665,11 @@ class Table:
         for constraint in self._constraints:
             if set(constraint.constraint_columns).issubset(data.columns.values):
                 if not constraint.is_valid(data).all():
-                    raise ConstraintsNotMetError('Data is not valid for the given constraints')
+                    raise ConstraintsNotMetError(
+                        "Data is not valid for the given constraints"
+                    )
 
-    def transform(self, data, on_missing_column='error'):
+    def transform(self, data, on_missing_column="error"):
         """Transform the given data.
 
         Args:
@@ -651,16 +691,18 @@ class Table:
         if not self.fitted:
             raise MetadataNotFittedError()
 
-        fields = [field for field in self.get_dtypes(ids=False) if field in data.columns]
-        LOGGER.debug('Anonymizing table %s', self.name)
+        fields = [
+            field for field in self.get_dtypes(ids=False) if field in data.columns
+        ]
+        LOGGER.debug("Anonymizing table %s", self.name)
         data = self._anonymize(data[fields])
 
         self._validate_data_on_constraints(data)
 
-        LOGGER.debug('Transforming constraints for table %s', self.name)
+        LOGGER.debug("Transforming constraints for table %s", self.name)
         data = self._transform_constraints(data, on_missing_column)
 
-        LOGGER.debug('Transforming table %s', self.name)
+        LOGGER.debug("Transforming table %s", self.name)
         try:
             return self._hyper_transformer.transform(data)
         except rdt.errors.NotFittedError:
@@ -668,15 +710,17 @@ class Table:
 
     @classmethod
     def _make_ids(cls, field_metadata, length):
-        field_subtype = field_metadata.get('subtype', 'integer')
-        if field_subtype == 'string':
-            regex = field_metadata.get('regex', '[ABCDEFGHJKLMOPQRSTUWYZ]+')
+        field_subtype = field_metadata.get("subtype", "integer")
+        if field_subtype == "string":
+            regex = field_metadata.get("regex", "[ABCDEFGHJKLMOPQRSTUWYZ]+")
             generator, max_size = strings_from_regex(regex)
             if max_size < length:
-                raise ValueError((
-                    'Unable to generate {} unique values for regex {}, the '
-                    'maximum number of unique values is {}.'
-                ).format(length, regex, max_size))
+                raise ValueError(
+                    (
+                        "Unable to generate {} unique values for regex {}, the "
+                        "maximum number of unique values is {}."
+                    ).format(length, regex, max_size)
+                )
             values = [next(generator) for _ in range(length)]
 
             return pd.Series(list(values)[:length])
@@ -705,15 +749,19 @@ class Table:
             reversed_data = constraint.reverse_transform(reversed_data)
 
         for name, field_metadata in self._fields_metadata.items():
-            field_type = field_metadata['type']
-            if field_type == 'id' and name not in reversed_data:
+            field_type = field_metadata["type"]
+            if field_type == "id" and name not in reversed_data:
                 field_data = self._make_ids(field_metadata, len(reversed_data))
-            elif field_metadata.get('pii', False):
-                field_data = pd.Series(Table._get_fake_values(field_metadata, len(reversed_data)))
+            elif field_metadata.get("pii", False):
+                field_data = pd.Series(
+                    Table._get_fake_values(field_metadata, len(reversed_data))
+                )
             else:
                 field_data = reversed_data[name]
 
-            reversed_data[name] = field_data[field_data.notnull()].astype(self._dtypes[name])
+            reversed_data[name] = field_data[field_data.notnull()].astype(
+                self._dtypes[name]
+            )
 
         return reversed_data[self._field_names]
 
@@ -745,7 +793,7 @@ class Table:
                 Table where all id fields are unique.
         """
         for name, field_metadata in self._fields_metadata.items():
-            if field_metadata['type'] == 'id' and not data[name].is_unique:
+            if field_metadata["type"] == "id" and not data[name].is_unique:
                 ids = self._make_ids(field_metadata, len(data))
                 ids.index = data.index.copy()
                 data[name] = ids
@@ -764,17 +812,17 @@ class Table:
                 dict representation of this metadata.
         """
         return {
-            'fields': copy.deepcopy(self._fields_metadata),
-            'constraints': [
+            "fields": copy.deepcopy(self._fields_metadata),
+            "constraints": [
                 constraint if isinstance(constraint, dict) else constraint.to_dict()
                 for constraint in self._constraints
             ],
-            'model_kwargs': copy.deepcopy(self._model_kwargs),
-            'name': self.name,
-            'primary_key': self._primary_key,
-            'sequence_index': self._sequence_index,
-            'entity_columns': self._entity_columns,
-            'context_columns': self._context_columns,
+            "model_kwargs": copy.deepcopy(self._model_kwargs),
+            "name": self.name,
+            "primary_key": self._primary_key,
+            "sequence_index": self._sequence_index,
+            "entity_columns": self._entity_columns,
+            "context_columns": self._context_columns,
         }
 
     def to_json(self, path):
@@ -784,7 +832,7 @@ class Table:
             path (str):
                 Path of the JSON file where this metadata will be stored.
         """
-        with open(path, 'w') as out_file:
+        with open(path, "w") as out_file:
             json.dump(self.to_dict(), out_file, indent=4)
 
     @classmethod
@@ -798,21 +846,21 @@ class Table:
                 If passed, set the dtype_transformers on the new instance.
         """
         metadata_dict = copy.deepcopy(metadata_dict)
-        fields = metadata_dict['fields'] or {}
+        fields = metadata_dict["fields"] or {}
         instance = cls(
-            name=metadata_dict.get('name'),
+            name=metadata_dict.get("name"),
             field_names=set(fields.keys()),
             field_types=fields,
-            constraints=metadata_dict.get('constraints') or [],
-            model_kwargs=metadata_dict.get('model_kwargs') or {},
-            primary_key=metadata_dict.get('primary_key'),
-            sequence_index=metadata_dict.get('sequence_index'),
-            entity_columns=metadata_dict.get('entity_columns') or [],
-            context_columns=metadata_dict.get('context_columns') or [],
+            constraints=metadata_dict.get("constraints") or [],
+            model_kwargs=metadata_dict.get("model_kwargs") or {},
+            primary_key=metadata_dict.get("primary_key"),
+            sequence_index=metadata_dict.get("sequence_index"),
+            entity_columns=metadata_dict.get("entity_columns") or [],
+            context_columns=metadata_dict.get("context_columns") or [],
             dtype_transformers=dtype_transformers,
-            min_value=metadata_dict.get('min_value', 'auto'),
-            max_value=metadata_dict.get('max_value', 'auto'),
-            rounding=metadata_dict.get('rounding', 'auto'),
+            min_value=metadata_dict.get("min_value", "auto"),
+            max_value=metadata_dict.get("max_value", "auto"),
+            rounding=metadata_dict.get("rounding", "auto"),
         )
         instance._fields_metadata = fields
         return instance
@@ -825,5 +873,5 @@ class Table:
             path (str):
                 Path of the JSON file to load
         """
-        with open(path, 'r') as in_file:
+        with open(path, "r") as in_file:
             return cls.from_dict(json.load(in_file))

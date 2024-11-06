@@ -43,7 +43,6 @@ class BaseTabularModel:
                 * ``integer``: Uses a ``NumericalTransformer`` of dtype ``int``.
                 * ``float``: Uses a ``NumericalTransformer`` of dtype ``float``.
                 * ``categorical``: Uses a ``CategoricalTransformer`` without gaussian noise.
-                * ``categorical_fuzzy``: Uses a ``CategoricalTransformer`` adding gaussian noise.
                 * ``one_hot_encoding``: Uses a ``OneHotEncodingTransformer``.
                 * ``label_encoding``: Uses a ``LabelEncodingTransformer``.
                 * ``boolean``: Uses a ``BooleanTransformer``.
@@ -83,9 +82,19 @@ class BaseTabularModel:
 
     _metadata = None
 
-    def __init__(self, field_names=None, field_types=None, field_transformers=None,
-                 anonymize_fields=None, primary_key=None, constraints=None, table_metadata=None,
-                 rounding='auto', min_value='auto', max_value='auto'):
+    def __init__(
+        self,
+        field_names=None,
+        field_types=None,
+        field_transformers=None,
+        anonymize_fields=None,
+        primary_key=None,
+        constraints=None,
+        table_metadata=None,
+        rounding="auto",
+        min_value="auto",
+        max_value="auto",
+    ):
         if table_metadata is None:
             self._metadata = Table(
                 field_names=field_names,
@@ -97,14 +106,23 @@ class BaseTabularModel:
                 dtype_transformers=self._DTYPE_TRANSFORMERS,
                 rounding=rounding,
                 min_value=min_value,
-                max_value=max_value
+                max_value=max_value,
             )
             self._metadata_fitted = False
         else:
-            for arg in (field_names, primary_key, field_types, anonymize_fields, constraints):
+            for arg in (
+                field_names,
+                primary_key,
+                field_types,
+                anonymize_fields,
+                constraints,
+            ):
                 if arg:
                     raise ValueError(
-                        'If table_metadata is given {} must be None'.format(arg.__name__))
+                        "If table_metadata is given {} must be None".format(
+                            arg.__name__
+                        )
+                    )
 
             if isinstance(table_metadata, dict):
                 table_metadata = Table.from_dict(table_metadata)
@@ -130,19 +148,28 @@ class BaseTabularModel:
         if isinstance(data, pd.DataFrame):
             data = data.reset_index(drop=True)
 
-        LOGGER.debug('Fitting %s to table %s; shape: %s', self.__class__.__name__,
-                     self._metadata.name, data.shape)
+        LOGGER.debug(
+            "Fitting %s to table %s; shape: %s",
+            self.__class__.__name__,
+            self._metadata.name,
+            data.shape,
+        )
         if not self._metadata_fitted:
             self._metadata.fit(data)
 
         self._num_rows = len(data)
 
-        LOGGER.debug('Transforming table %s; shape: %s', self._metadata.name, data.shape)
+        LOGGER.debug(
+            "Transforming table %s; shape: %s", self._metadata.name, data.shape
+        )
         transformed = self._metadata.transform(data)
 
         if self._metadata.get_dtypes(ids=False):
             LOGGER.debug(
-                'Fitting %s model to table %s', self.__class__.__name__, self._metadata.name)
+                "Fitting %s model to table %s",
+                self.__class__.__name__,
+                self._metadata.name,
+            )
             self._fit(transformed)
 
     def get_metadata(self):
@@ -183,7 +210,7 @@ class BaseTabularModel:
         """
         for column, value in conditions.items():
             column_values = sampled[column]
-            if column_values.dtype.kind == 'f':
+            if column_values.dtype.kind == "f":
                 distance = value * float_rtol
                 sampled = sampled[np.abs(column_values - value) < distance]
                 sampled[column] = value
@@ -192,8 +219,14 @@ class BaseTabularModel:
 
         return sampled
 
-    def _sample_rows(self, num_rows, conditions=None, transformed_conditions=None,
-                     float_rtol=0.1, previous_rows=None):
+    def _sample_rows(
+        self,
+        num_rows,
+        conditions=None,
+        transformed_conditions=None,
+        float_rtol=0.1,
+        previous_rows=None,
+    ):
         """Sample rows with the given conditions.
 
         Input conditions is taken both in the raw input format, which will be used
@@ -254,8 +287,15 @@ class BaseTabularModel:
             sampled = self._metadata.reverse_transform(sampled)
             return sampled, num_rows
 
-    def _sample_batch(self, num_rows=None, max_retries=100, max_rows_multiplier=10,
-                      conditions=None, transformed_conditions=None, float_rtol=0.01):
+    def _sample_batch(
+        self,
+        num_rows=None,
+        max_retries=100,
+        max_rows_multiplier=10,
+        conditions=None,
+        transformed_conditions=None,
+        float_rtol=0.01,
+    ):
         """Sample a batch of rows with the given conditions.
 
         This will enter a reject-sampling loop in which rows will be sampled until
@@ -300,7 +340,8 @@ class BaseTabularModel:
                 Sampled data.
         """
         sampled, num_valid = self._sample_rows(
-            num_rows, conditions, transformed_conditions, float_rtol)
+            num_rows, conditions, transformed_conditions, float_rtol
+        )
 
         counter = 0
         total_sampled = num_rows
@@ -314,7 +355,9 @@ class BaseTabularModel:
             num_to_sample = min(int(remaining / valid_probability), max_rows)
             total_sampled += num_to_sample
 
-            LOGGER.info('%s valid rows remaining. Resampling %s rows', remaining, num_to_sample)
+            LOGGER.info(
+                "%s valid rows remaining. Resampling %s rows", remaining, num_to_sample
+            )
             sampled, num_valid = self._sample_rows(
                 num_to_sample, conditions, transformed_conditions, float_rtol, sampled
             )
@@ -349,17 +392,27 @@ class BaseTabularModel:
             conditions = pd.DataFrame(conditions, index=range(n_rows))
 
         elif not isinstance(conditions, pd.DataFrame):
-            raise TypeError('`conditions` must be a dataframe, a dictionary or a pandas series.')
+            raise TypeError(
+                "`conditions` must be a dataframe, a dictionary or a pandas series."
+            )
 
         elif num_rows is not None and len(conditions) != num_rows:
             raise ValueError(
-                'If `conditions` is a `DataFrame`, `num_rows` must be `None` or match its lenght.')
+                "If `conditions` is a `DataFrame`, `num_rows` must be `None` or match its lenght."
+            )
 
         return conditions.copy()
 
-    def _conditionally_sample_rows(self, dataframe, max_retries, max_rows_multiplier,
-                                   condition, transformed_condition, float_rtol,
-                                   graceful_reject_sampling):
+    def _conditionally_sample_rows(
+        self,
+        dataframe,
+        max_retries,
+        max_rows_multiplier,
+        condition,
+        transformed_condition,
+        float_rtol,
+        graceful_reject_sampling,
+    ):
         num_rows = len(dataframe)
         sampled_rows = self._sample_batch(
             num_rows,
@@ -367,31 +420,40 @@ class BaseTabularModel:
             max_rows_multiplier,
             condition,
             transformed_condition,
-            float_rtol
+            float_rtol,
         )
         num_sampled_rows = len(sampled_rows)
 
         if num_sampled_rows < num_rows:
             # Didn't get enough rows.
             if len(sampled_rows) == 0:
-                error = 'No valid rows could be generated with the given conditions.'
+                error = "No valid rows could be generated with the given conditions."
                 raise ValueError(error)
 
             elif not graceful_reject_sampling:
-                error = f'Could not get enough valid rows within {max_retries} trials.'
+                error = f"Could not get enough valid rows within {max_retries} trials."
                 raise ValueError(error)
 
             else:
-                warn(f'Only {len(sampled_rows)} rows could '
-                     f'be sampled within {max_retries} trials.')
+                warn(
+                    f"Only {len(sampled_rows)} rows could "
+                    f"be sampled within {max_retries} trials."
+                )
 
         if len(sampled_rows) > 0:
-            sampled_rows[COND_IDX] = dataframe[COND_IDX].values[:len(sampled_rows)]
+            sampled_rows[COND_IDX] = dataframe[COND_IDX].values[: len(sampled_rows)]
 
         return sampled_rows
 
-    def sample(self, num_rows=None, max_retries=100, max_rows_multiplier=10,
-               conditions=None, float_rtol=0.01, graceful_reject_sampling=False):
+    def sample(
+        self,
+        num_rows=None,
+        max_retries=100,
+        max_rows_multiplier=10,
+        conditions=None,
+        float_rtol=0.01,
+        graceful_reject_sampling=False,
+    ):
         """Sample rows from this table.
 
         Args:
@@ -448,12 +510,14 @@ class BaseTabularModel:
         # validate columns
         for column in conditions.columns:
             if column not in self._metadata.get_fields():
-                raise ValueError(f'Invalid column name `{column}`')
+                raise ValueError(f"Invalid column name `{column}`")
 
         try:
-            transformed_conditions = self._metadata.transform(conditions, on_missing_column='drop')
+            transformed_conditions = self._metadata.transform(
+                conditions, on_missing_column="drop"
+            )
         except ConstraintsNotMetError as cnme:
-            cnme.message = 'Passed conditions are not valid for the given constraints'
+            cnme.message = "Passed conditions are not valid for the given constraints"
             raise
 
         condition_columns = list(conditions.columns)
@@ -481,17 +545,23 @@ class BaseTabularModel:
                     condition,
                     None,
                     float_rtol,
-                    graceful_reject_sampling
+                    graceful_reject_sampling,
                 )
                 all_sampled_rows.append(sampled_rows)
             else:
-                transformed_conditions_in_group = transformed_conditions.loc[condition_indices]
-                transformed_groups = transformed_conditions_in_group.groupby(transformed_columns)
+                transformed_conditions_in_group = transformed_conditions.loc[
+                    condition_indices
+                ]
+                transformed_groups = transformed_conditions_in_group.groupby(
+                    transformed_columns
+                )
                 for transformed_group, transformed_dataframe in transformed_groups:
                     if not isinstance(transformed_group, tuple):
                         transformed_group = [transformed_group]
 
-                    transformed_condition = dict(zip(transformed_columns, transformed_group))
+                    transformed_condition = dict(
+                        zip(transformed_columns, transformed_group)
+                    )
                     sampled_rows = self._conditionally_sample_rows(
                         transformed_dataframe,
                         max_retries,
@@ -499,7 +569,7 @@ class BaseTabularModel:
                         condition,
                         transformed_condition,
                         float_rtol,
-                        graceful_reject_sampling
+                        graceful_reject_sampling,
                     )
                     all_sampled_rows.append(sampled_rows)
 
@@ -541,7 +611,7 @@ class BaseTabularModel:
         else:
             parameters = {}
 
-        parameters['num_rows'] = self._num_rows
+        parameters["num_rows"] = self._num_rows
         return parameters
 
     def _set_parameters(self, parameters):
@@ -563,7 +633,7 @@ class BaseTabularModel:
                 If the model is not parametric or cannot be described
                 using a simple dictionary.
         """
-        num_rows = parameters.pop('num_rows')
+        num_rows = parameters.pop("num_rows")
         self._num_rows = 0 if pd.isnull(num_rows) else max(0, int(round(num_rows)))
 
         if self._metadata.get_dtypes(ids=False):
@@ -576,7 +646,7 @@ class BaseTabularModel:
             path (str):
                 Path where the SDV instance will be serialized.
         """
-        with open(path, 'wb') as output:
+        with open(path, "wb") as output:
             pickle.dump(self, output)
 
     @classmethod
@@ -591,5 +661,5 @@ class BaseTabularModel:
             TabularModel:
                 The loaded tabular model.
         """
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             return pickle.load(f)

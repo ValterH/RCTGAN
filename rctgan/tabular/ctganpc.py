@@ -14,8 +14,9 @@ import uuid
 LOGGER = logging.getLogger(__name__)
 COND_IDX = str(uuid.uuid4())
 FIXED_RNG_SEED = 73251
-TMP_FILE_NAME = '.sample.csv.temp'
-DISABLE_TMP_FILE = 'disable'
+TMP_FILE_NAME = ".sample.csv.temp"
+DISABLE_TMP_FILE = "disable"
+
 
 class CTGANModel(BaseTabularModel):
     """Base class for all the CTGAN models.
@@ -26,9 +27,7 @@ class CTGANModel(BaseTabularModel):
     _MODEL_CLASS = None
     _model_kwargs = None
 
-    _DTYPE_TRANSFORMERS = {
-        'O': None
-    }
+    _DTYPE_TRANSFORMERS = {"O": None}
 
     def _build_model(self):
         return self._MODEL_CLASS(**self._model_kwargs)
@@ -47,7 +46,7 @@ class CTGANModel(BaseTabularModel):
         for field in table_data.columns:
             if field in fields_before_transform:
                 meta = fields_before_transform[field]
-                if meta['type'] == 'categorical':
+                if meta["type"] == "categorical":
                     categoricals.append(field)
 
             else:
@@ -61,13 +60,10 @@ class CTGANModel(BaseTabularModel):
                     kind = np.dtype(dtype).kind
                 except TypeError:
                     # probably category
-                    kind = 'O'
-                if kind in ['O', 'b']:
+                    kind = "O"
+                if kind in ["O", "b"]:
                     categoricals.append(field)
-        self._model.fit(
-            table_data,
-            discrete_columns=categoricals
-        )
+        self._model.fit(table_data, discrete_columns=categoricals)
 
     def _sample(self, num_rows, conditions=None):
         """Sample the indicated number of rows from the model.
@@ -87,7 +83,9 @@ class CTGANModel(BaseTabularModel):
         if conditions is None:
             return self._model.sample(num_rows)
 
-        raise NotImplementedError(f"{self._MODEL_CLASS} doesn't support conditional sampling.")
+        raise NotImplementedError(
+            f"{self._MODEL_CLASS} doesn't support conditional sampling."
+        )
 
     def _set_random_state(self, random_state):
         """Set the random state of the model's random number generator.
@@ -120,7 +118,6 @@ class CTGAN(CTGANModel):
                 * ``integer``: Uses a ``NumericalTransformer`` of dtype ``int``.
                 * ``float``: Uses a ``NumericalTransformer`` of dtype ``float``.
                 * ``categorical``: Uses a ``CategoricalTransformer`` without gaussian noise.
-                * ``categorical_fuzzy``: Uses a ``CategoricalTransformer`` adding gaussian noise.
                 * ``one_hot_encoding``: Uses a ``OneHotEncodingTransformer``.
                 * ``label_encoding``: Uses a ``LabelEncodingTransformer``.
                 * ``boolean``: Uses a ``BooleanTransformer``.
@@ -193,13 +190,35 @@ class CTGAN(CTGANModel):
 
     _MODEL_CLASS = CTGANSynthesizer
 
-    def __init__(self, field_names=None, field_types=None, field_transformers=None,
-                 anonymize_fields=None, primary_key=None, constraints=None, table_metadata=None,
-                 embedding_dim=128, generator_dim=(256, 256), discriminator_dim=(256, 256),
-                 generator_lr=2e-4, generator_decay=1e-6, discriminator_lr=2e-4,
-                 discriminator_decay=1e-6, batch_size=500, discriminator_steps=1,
-                 log_frequency=True, verbose=False, epochs=300, pac=10, cuda=True, plot_loss=False, seed=None,
-                 rounding='auto', min_value='auto', max_value='auto'):
+    def __init__(
+        self,
+        field_names=None,
+        field_types=None,
+        field_transformers=None,
+        anonymize_fields=None,
+        primary_key=None,
+        constraints=None,
+        table_metadata=None,
+        embedding_dim=128,
+        generator_dim=(256, 256),
+        discriminator_dim=(256, 256),
+        generator_lr=2e-4,
+        generator_decay=1e-6,
+        discriminator_lr=2e-4,
+        discriminator_decay=1e-6,
+        batch_size=500,
+        discriminator_steps=1,
+        log_frequency=True,
+        verbose=False,
+        epochs=300,
+        pac=10,
+        cuda=True,
+        plot_loss=False,
+        seed=None,
+        rounding="auto",
+        min_value="auto",
+        max_value="auto",
+    ):
         super().__init__(
             field_names=field_names,
             primary_key=primary_key,
@@ -210,28 +229,28 @@ class CTGAN(CTGANModel):
             table_metadata=table_metadata,
             rounding=rounding,
             max_value=max_value,
-            min_value=min_value
+            min_value=min_value,
         )
 
         self._model_kwargs = {
-            'embedding_dim': embedding_dim,
-            'generator_dim': generator_dim,
-            'discriminator_dim': discriminator_dim,
-            'generator_lr': generator_lr,
-            'generator_decay': generator_decay,
-            'discriminator_lr': discriminator_lr,
-            'discriminator_decay': discriminator_decay,
-            'batch_size': batch_size,
-            'discriminator_steps': discriminator_steps,
-            'log_frequency': log_frequency,
-            'verbose': verbose,
-            'epochs': epochs,
-            'pac': pac,
-            'cuda': cuda,
-            'plot_loss': plot_loss,
-            'seed': seed
+            "embedding_dim": embedding_dim,
+            "generator_dim": generator_dim,
+            "discriminator_dim": discriminator_dim,
+            "generator_lr": generator_lr,
+            "generator_decay": generator_decay,
+            "discriminator_lr": discriminator_lr,
+            "discriminator_decay": discriminator_decay,
+            "batch_size": batch_size,
+            "discriminator_steps": discriminator_steps,
+            "log_frequency": log_frequency,
+            "verbose": verbose,
+            "epochs": epochs,
+            "pac": pac,
+            "cuda": cuda,
+            "plot_loss": plot_loss,
+            "seed": seed,
         }
-        
+
 
 class PC_CTGANModel(BaseTabularModel):
     """Base class for all the CTGAN models.
@@ -242,12 +261,10 @@ class PC_CTGANModel(BaseTabularModel):
     _MODEL_CLASS = None
     _model_kwargs = None
 
-    _DTYPE_TRANSFORMERS = {
-        'O': None
-    }
-    
+    _DTYPE_TRANSFORMERS = {"O": None}
+
     _metadata_pc = None
-    
+
     _type_dict = {}
     _model = None
 
@@ -268,7 +285,7 @@ class PC_CTGANModel(BaseTabularModel):
         for field in table_data.columns:
             if field in fields_before_transform:
                 meta = fields_before_transform[field]
-                if meta['type'] == 'categorical':
+                if meta["type"] == "categorical":
                     categoricals.append(field)
 
             else:
@@ -282,64 +299,93 @@ class PC_CTGANModel(BaseTabularModel):
                     kind = np.dtype(dtype).kind
                 except TypeError:
                     # probably category
-                    kind = 'O'
-                if kind in ['O', 'b']:
+                    kind = "O"
+                if kind in ["O", "b"]:
                     categoricals.append(field)
         self._type_dict = dict(table_data.dtypes)
-        
-        self._model.fit(
-            table_data,
-            parent_data,
-            discrete_columns=categoricals
-        )
-        
-    def fit(self, data, parent_data, field_names_pc=None, field_types_pc=None, field_transformers_pc=None,
-                 anonymize_fields_pc=None, primary_key_pc=None, constraints_pc=None, table_metadata_pc=None,
-                 rounding_pc='auto', min_value_pc='auto', max_value_pc='auto'):
+
+        self._model.fit(table_data, parent_data, discrete_columns=categoricals)
+
+    def fit(
+        self,
+        data,
+        parent_data,
+        field_names_pc=None,
+        field_types_pc=None,
+        field_transformers_pc=None,
+        anonymize_fields_pc=None,
+        primary_key_pc=None,
+        constraints_pc=None,
+        table_metadata_pc=None,
+        rounding_pc="auto",
+        min_value_pc="auto",
+        max_value_pc="auto",
+    ):
         if isinstance(data, pd.DataFrame):
             data = data.reset_index(drop=True)
 
-        LOGGER.debug('Fitting %s to table %s; shape: %s', self.__class__.__name__,
-                     self._metadata.name, data.shape)
+        LOGGER.debug(
+            "Fitting %s to table %s; shape: %s",
+            self.__class__.__name__,
+            self._metadata.name,
+            data.shape,
+        )
         if not self._metadata_fitted:
             self._metadata.fit(data)
 
         self._num_rows = len(data)
 
-        LOGGER.debug('Transforming table %s; shape: %s', self._metadata.name, data.shape)
+        LOGGER.debug(
+            "Transforming table %s; shape: %s", self._metadata.name, data.shape
+        )
         transformed = self._metadata.transform(data)
-        
-        
+
         self._metadata_pc = Table(
-                field_names=field_names_pc,
-                primary_key=primary_key_pc,
-                field_types=field_types_pc,
-                field_transformers=field_transformers_pc,
-                anonymize_fields=anonymize_fields_pc,
-                constraints=constraints_pc,
-                dtype_transformers=self._DTYPE_TRANSFORMERS,
-                rounding=rounding_pc,
-                min_value=min_value_pc,
-                max_value=max_value_pc
-            )
+            field_names=field_names_pc,
+            primary_key=primary_key_pc,
+            field_types=field_types_pc,
+            field_transformers=field_transformers_pc,
+            anonymize_fields=anonymize_fields_pc,
+            constraints=constraints_pc,
+            dtype_transformers=self._DTYPE_TRANSFORMERS,
+            rounding=rounding_pc,
+            min_value=min_value_pc,
+            max_value=max_value_pc,
+        )
         self._metadata_pc.fit(parent_data)
         if isinstance(parent_data, pd.DataFrame):
             parent_data = parent_data.reset_index(drop=True)
 
-        LOGGER.debug('Fitting %s to table %s; shape: %s', self.__class__.__name__,
-                     self._metadata_pc.name, parent_data.shape)
+        LOGGER.debug(
+            "Fitting %s to table %s; shape: %s",
+            self.__class__.__name__,
+            self._metadata_pc.name,
+            parent_data.shape,
+        )
         self._num_rows_pc = len(parent_data)
 
-        LOGGER.debug('Transforming table %s; shape: %s', self._metadata_pc.name, parent_data.shape)
+        LOGGER.debug(
+            "Transforming table %s; shape: %s",
+            self._metadata_pc.name,
+            parent_data.shape,
+        )
         transformed_pc = self._metadata_pc.transform(parent_data)
 
-        if self._metadata.get_dtypes(ids=False) and self._metadata_pc.get_dtypes(ids=False):
+        if self._metadata.get_dtypes(ids=False) and self._metadata_pc.get_dtypes(
+            ids=False
+        ):
             LOGGER.debug(
-                'Fitting %s model to table %s', self.__class__.__name__, self._metadata.name)
+                "Fitting %s model to table %s",
+                self.__class__.__name__,
+                self._metadata.name,
+            )
             LOGGER.debug(
-                'Fitting %s model to table %s', self.__class__.__name__, self._metadata_pc.name)
+                "Fitting %s model to table %s",
+                self.__class__.__name__,
+                self._metadata_pc.name,
+            )
             self._fit(transformed, transformed_pc)
-    
+
     def _randomize_samples(self, randomize_samples):
         """Randomize the samples according to user input.
 
@@ -357,7 +403,7 @@ class PC_CTGANModel(BaseTabularModel):
             self._set_random_state(None)
         else:
             self._set_random_state(FIXED_RNG_SEED)
-    
+
     def _validate_file_path(self, output_file_path):
         """Validate the user-passed output file arg, and create the file."""
         output_path = None
@@ -368,7 +414,7 @@ class PC_CTGANModel(BaseTabularModel):
         elif output_file_path:
             output_path = os.path.abspath(output_file_path)
             if os.path.exists(output_path):
-                raise AssertionError(f'{output_path} already exists.')
+                raise AssertionError(f"{output_path} already exists.")
 
         else:
             if os.path.exists(TMP_FILE_NAME):
@@ -377,81 +423,99 @@ class PC_CTGANModel(BaseTabularModel):
             output_path = TMP_FILE_NAME
 
         # Create the file.
-        with open(output_path, 'w+'):
+        with open(output_path, "w+"):
             pass
 
         return output_path
-    
+
     def _sample(self, sizes, parent, conditions=None):
         if conditions is None:
             if self._model is None:
+
                 def dupli_rows(data, size_list):
                     df = data.copy()
-                    df['index_prim_key'] = range(len(df))
+                    df["index_prim_key"] = range(len(df))
                     size_list_2 = []
                     for k in range(len(size_list)):
                         s = size_list[k]
-                        size_list_2 += [k]*s
-                    index_prim_key = pd.DataFrame(size_list_2, columns=['index_prim_key'])
-                    df = index_prim_key.merge(df, on=['index_prim_key'], how='left')
-                    df = df.drop(['index_prim_key'], axis=1)
+                        size_list_2 += [k] * s
+                    index_prim_key = pd.DataFrame(
+                        size_list_2, columns=["index_prim_key"]
+                    )
+                    df = index_prim_key.merge(df, on=["index_prim_key"], how="left")
+                    df = df.drop(["index_prim_key"], axis=1)
                     return df
+
                 data = pd.DataFrame(np.zeros((np.sum(sizes), 0)))
-                if sum(sizes)==len(sizes):
+                if sum(sizes) == len(sizes):
                     data["Parent_index"] = range(len(data))
                 else:
-                    data["Parent_index"] = dupli_rows(pd.DataFrame(parent.index, columns=['__index__']), sizes)['__index__']
+                    data["Parent_index"] = dupli_rows(
+                        pd.DataFrame(parent.index, columns=["__index__"]), sizes
+                    )["__index__"]
                 return data
             return self._model.sample(sizes, parent)
 
-        raise NotImplementedError(f"{self._MODEL_CLASS} doesn't support conditional sampling.")
-    
-    
-    def sample(self, sizes, parent, randomize_samples=True, output_file_path=None,
-               conditions=None):
+        raise NotImplementedError(
+            f"{self._MODEL_CLASS} doesn't support conditional sampling."
+        )
+
+    def sample(
+        self,
+        sizes,
+        parent,
+        randomize_samples=True,
+        output_file_path=None,
+        conditions=None,
+    ):
         if conditions is not None:
-            raise TypeError('This method does not support the conditions parameter. '
-                            'Please create `sdvrctgan.sampling.Condition` objects and pass them '
-                            'into the `sample_conditions` method. '
-                            'See User Guide or API for more details.')
+            raise TypeError(
+                "This method does not support the conditions parameter. "
+                "Please create `sdvrctgan.sampling.Condition` objects and pass them "
+                "into the `sample_conditions` method. "
+                "See User Guide or API for more details."
+            )
 
         if sizes is None:
-            raise ValueError('You must specify the number of rows to sample (e.g. num_rows=100).')
+            raise ValueError(
+                "You must specify the number of rows to sample (e.g. num_rows=100)."
+            )
 
         no_size = True
         for s in sizes:
-            if s>0:
+            if s > 0:
                 no_size = False
                 break
-        if no_size or len(sizes)==0:
+        if no_size or len(sizes) == 0:
             return pd.DataFrame()
 
         self._randomize_samples(randomize_samples)
 
         output_file_path = self._validate_file_path(output_file_path)
-        
-        LOGGER.debug('Fitting %s to table %s; shape: %s', self.__class__.__name__,
-                     self._metadata_pc.name, parent.shape)
+
+        LOGGER.debug(
+            "Fitting %s to table %s; shape: %s",
+            self.__class__.__name__,
+            self._metadata_pc.name,
+            parent.shape,
+        )
         self._num_rows_pc = len(parent)
 
-        LOGGER.debug('Transforming table %s; shape: %s', self._metadata_pc.name, parent.shape)
+        LOGGER.debug(
+            "Transforming table %s; shape: %s", self._metadata_pc.name, parent.shape
+        )
         _transformed_pc = self._metadata_pc.transform(parent)
 
-        sampled = self._sample(
-            sizes,
-            _transformed_pc
-        )
+        sampled = self._sample(sizes, _transformed_pc)
 
         parent_index = sampled["Parent_index"].copy()
         sampled.drop("Parent_index", inplace=True, axis=1)
         sampled = sampled.astype(self._type_dict)
         sampled = self._metadata.reverse_transform(sampled)
         sampled["Parent_index"] = parent_index
-        
+
         return sampled
-    
-    
-    
+
     def _set_random_state(self, random_state):
         """Set the random state of the model's random number generator.
 
@@ -463,16 +527,37 @@ class PC_CTGANModel(BaseTabularModel):
 
 
 class PC_CTGAN(PC_CTGANModel):
-
     _MODEL_CLASS = PC_CTGANSynthesizer
 
-    def __init__(self, field_names=None, field_types=None, field_transformers=None,
-                 anonymize_fields=None, primary_key=None, constraints=None, table_metadata=None,
-                 embedding_dim=128, generator_dim=(256, 256), discriminator_dim=(256, 256),
-                 generator_lr=2e-4, generator_decay=1e-6, discriminator_lr=2e-4,
-                 discriminator_decay=1e-6, batch_size=500, discriminator_steps=1,
-                 log_frequency=True, verbose=False, epochs=300, pac=10, cuda=True, plot_loss=False, seed=None,
-                 rounding='auto', min_value='auto', max_value='auto'):
+    def __init__(
+        self,
+        field_names=None,
+        field_types=None,
+        field_transformers=None,
+        anonymize_fields=None,
+        primary_key=None,
+        constraints=None,
+        table_metadata=None,
+        embedding_dim=128,
+        generator_dim=(256, 256),
+        discriminator_dim=(256, 256),
+        generator_lr=2e-4,
+        generator_decay=1e-6,
+        discriminator_lr=2e-4,
+        discriminator_decay=1e-6,
+        batch_size=500,
+        discriminator_steps=1,
+        log_frequency=True,
+        verbose=False,
+        epochs=300,
+        pac=10,
+        cuda=True,
+        plot_loss=False,
+        seed=None,
+        rounding="auto",
+        min_value="auto",
+        max_value="auto",
+    ):
         super().__init__(
             field_names=field_names,
             primary_key=primary_key,
@@ -483,24 +568,24 @@ class PC_CTGAN(PC_CTGANModel):
             table_metadata=table_metadata,
             rounding=rounding,
             max_value=max_value,
-            min_value=min_value
+            min_value=min_value,
         )
 
         self._model_kwargs = {
-            'embedding_dim': embedding_dim,
-            'generator_dim': generator_dim,
-            'discriminator_dim': discriminator_dim,
-            'generator_lr': generator_lr,
-            'generator_decay': generator_decay,
-            'discriminator_lr': discriminator_lr,
-            'discriminator_decay': discriminator_decay,
-            'batch_size': batch_size,
-            'discriminator_steps': discriminator_steps,
-            'log_frequency': log_frequency,
-            'verbose': verbose,
-            'epochs': epochs,
-            'pac': pac,
-            'cuda': cuda,
-            'plot_loss': plot_loss,
-            'seed': seed
+            "embedding_dim": embedding_dim,
+            "generator_dim": generator_dim,
+            "discriminator_dim": discriminator_dim,
+            "generator_lr": generator_lr,
+            "generator_decay": generator_decay,
+            "discriminator_lr": discriminator_lr,
+            "discriminator_decay": discriminator_decay,
+            "batch_size": batch_size,
+            "discriminator_steps": discriminator_steps,
+            "log_frequency": log_frequency,
+            "verbose": verbose,
+            "epochs": epochs,
+            "pac": pac,
+            "cuda": cuda,
+            "plot_loss": plot_loss,
+            "seed": seed,
         }
