@@ -440,7 +440,9 @@ class RCTGAN:
                             all_parents_sampled = False
                     
             if all_parents_sampled == False:
-                break
+                # If all parents were not sampled yet, exit the function
+                # the table will be sampled when all its parents are sampled.
+                return
             
             if parent_name not in tables_transformed.keys():
                 table_transformed = self.transform(parent_name, sampled_data[parent_name])
